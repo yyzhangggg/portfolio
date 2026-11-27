@@ -19,7 +19,8 @@ Planning and architecture document for turning this repo into a personal photogr
 
 - `backend/` — Django 5.2 + DRF, app `gallery` (replaces the old `projects` app). Models, storage, uploads, public and admin APIs, session login, Render blueprint (`render.yaml`) are in place. `gallery/migrations/0001_initial.py` was hand-written (no Django available where it was authored); run `makemigrations --check` once locally.
 - `frontend/` — public site implementing the approved design; reads `/api/public/*`, falls back to sample content in development only. `vercel.json` holds the rewrites (Render URL placeholder to fill in).
-- `admin/` — still the placeholder. Next step: build the dashboard against the admin API.
+- `admin/` — dashboard: login, photo library (filters, multi-upload with progress, editor, bulk actions, drag reorder), series (create, edit, publish, reorder, cover), homepage (headline, hero video, poster), profile (story, portrait). `vercel.json` with the same `/api` rewrite.
+- Deployment guide: `docs/deploy.md`.
 
 Decisions (2026-11-27): photos are **JPEG only** (no HEIC/PNG/WebP uploads); **originals are kept** (private bucket) while the library is small — revisit if storage grows.
 
