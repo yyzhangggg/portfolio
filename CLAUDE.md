@@ -166,6 +166,11 @@ MVP:
 
 - Homepage settings: upload/replace the hero video and poster, edit the headline, choose and order the featured series
 
+Admin cropping (planned):
+- Each series has a grid ratio setting: 3:4, 4:3, 16:9 or 9:16.
+- When uploading or editing a photo, the photographer may crop it to a ratio. The crop is stored as a box over the kept original, so it can always be changed or removed; variants are regenerated from the original.
+- Uncropped photos are shown whole on the public site, inside the series' cell ratio with margins.
+
 Later:
 - Bulk select actions
 - Profile editor (bio, avatar, links)
@@ -186,8 +191,9 @@ Home page, top to bottom:
 
 MVP:
 - Home page as above
-- Series page: an even grid of photos (uniform cells, not masonry) using stored width/height (no layout shift)
-- Lightbox: full-screen view, keyboard and swipe navigation, caption and EXIF toggle
+- Series page: an even grid of uniform cells (not masonry). The cell aspect ratio is chosen per series in the admin: 3:4, 4:3, 16:9 or 9:16. Photos are **never cropped on the public site**: each sits whole inside its cell (contain), with even margins around it. Uses stored width/height (no layout shift).
+- Cropping happens only in the admin, as an explicit choice by the photographer (see "Admin cropping" below); the original is always kept.
+- Lightbox: full-screen view, keyboard and swipe navigation, caption and EXIF toggle. Info panel open by default on desktop, closed by default on phones (decided 2026-11-27).
 - About / Contact page
 - Responsive images (thumbnail in grid, larger variant in lightbox) and lazy loading
 - Accessibility: alt text on every image, keyboard-navigable lightbox, visible focus states, sufficient contrast
@@ -236,6 +242,8 @@ Phase 5 — Domain and multi-user
 ## Open questions
 
 - Domain name to buy and when.
-- Whether the public site should show EXIF by default.
+- Decided 2026-11-27: lightbox info panel open by default on desktop, closed on phones.
+- Decided 2026-11-27: no cropping on the public site; per-series cell ratio (3:4 / 4:3 / 16:9 / 9:16) set in the admin; optional cropping only in the admin.
+- To confirm: does an admin crop apply only to the grid thumbnail, or also to the lightbox and series cover?
 - Decided 2026-11-27: no HEIC support; JPEG only. Keep originals for now.
 - Decided 2026-11-27: visual direction is the dark gallery look in the mockup.
