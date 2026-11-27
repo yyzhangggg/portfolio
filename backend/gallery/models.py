@@ -169,3 +169,18 @@ def delete_public_keys(keys):
     storage = get_storage()
     for key in keys:
         storage.delete_quietly(PUBLIC, key)
+
+
+class RecoveryCode(models.Model):
+    """A one-time code for resetting a forgotten password. Only the hash is stored."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="recovery_codes")
+    code_hash = models.CharField(max_length=256)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Recovery code for {self.user} ({'used' if self.used_at else 'unused'})"

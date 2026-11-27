@@ -56,6 +56,8 @@ Pick the names now (e.g. `ziyue-api`, `ziyue`, `ziyue-admin`) so you can fill th
    python manage.py create_photographer ziyue --display-name "Ziyue" --slug ziyue
    ```
 
+   It prints 10 recovery codes: give them to Ziyue to keep safe. They are how a forgotten password is reset ("Forgot password?" on the sign-in page). If they are lost too, run `python manage.py changepassword ziyue` or `python manage.py generate_recovery_codes ziyue` in the same shell.
+
 5. Check `https://ziyue-api.onrender.com/api/health/` returns `{"status": "ok"}`.
 
 ## 4. Vercel: public site

@@ -22,7 +22,8 @@ Planning and architecture document for an architecture-photography portfolio wit
 - `backend/` — Django 5.2 + DRF, app `gallery` (replaces the old `projects` app). Models, storage, uploads, public and admin APIs, session login, Render blueprint (`render.yaml`) are in place. `gallery/migrations/0001_initial.py` was hand-written (no Django available where it was authored); run `makemigrations --check` once locally.
 - `frontend/` — public site implementing the approved design; reads `/api/public/*`, falls back to sample content in development only. `vercel.json` holds the rewrites (Render URL placeholder to fill in).
 - `admin/` — dashboard: login, photo library (filters, multi-upload with progress, editor, bulk actions, drag reorder), series (create, edit, publish, reorder, cover), homepage (headline, hero video, poster), profile (story, portrait). `vercel.json` with the same `/api` rewrite.
-- Deployment guide: `docs/deploy.md`.
+- Deployment guide: `docs/deploy.md`. Testing checklist: `docs/testing.md`.
+- Account recovery: recovery codes, change password (see below). Maintainer command: `generate_recovery_codes <username>`.
 
 Decisions (2026-11-27): photos are **JPEG only** (no HEIC/PNG/WebP uploads); **originals are kept** (private bucket) while the library is small — revisit if storage grows.
 
@@ -182,7 +183,7 @@ Later:
 - Simple stats (counts, storage used)
 - Second user account for the friend
 
-Account recovery (decided 2026-11-27, not built yet):
+Account recovery (built):
 - No email. Forgot password uses **recovery codes**: 10 one-time codes generated when the account is created (shown once by `create_photographer`) and regenerable from the dashboard after re-entering the password. Only hashes are stored.
 - Login page → "Forgot password?" → username + one recovery code + new password. Rate-limited like login; the code is used up; other sessions are signed out.
 - Logged in → About you → "Change password" (current + new) and "Recovery codes" (how many are left; regenerate).
