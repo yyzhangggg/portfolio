@@ -106,6 +106,13 @@ All content belongs to an owner so a second photographer can be added later.
 - is_published, display_order
 - created_at, updated_at
 
+**HomepageSettings** (one per owner; drives the home page hero)
+- owner → User (one-to-one)
+- hero video: storage key in R2 (MP4/H.264, optional WebM), duration, size
+- hero poster image: storage key (shown while the video loads, and to users with reduced-motion enabled)
+- hero headline and optional sub-line
+- featured series (ordered list of Albums shown on the home page)
+
 Migration path: rename/replace the existing `projects` app models; existing data is sample-only, so a clean migration is acceptable.
 
 ## API (DRF)
@@ -124,6 +131,8 @@ Admin, authenticated, scoped to the logged-in owner's content:
 - bulk actions (publish/unpublish/delete several photos)
 - request an upload URL (see below)
 - confirm an upload (creates the Photo record and triggers processing)
+- read / update homepage settings (headline, featured series order)
+- request an upload URL for the hero video or poster, then confirm it (same presigned flow as photos)
 - health endpoint for the keep-alive pinger
 
 Permissions: every admin query is filtered by `owner = request.user`; no user can see or edit another user's drafts.
@@ -139,6 +148,8 @@ Permissions: every admin query is filtered by `owner = request.user`; no user ca
 
 Limits to enforce: accepted types (JPEG, PNG, HEIC→convert if feasible, WebP), max file size, max dimensions.
 
+Hero video uploads use the same presigned direct-to-R2 flow. The server does not transcode video on the free tier, so the admin asks for an already-compressed file: MP4 (H.264), roughly 10–20 seconds, a few MB, no audio needed. Enforce a size cap and accepted types; a poster image is required alongside it.
+
 ## Admin dashboard (admin/) features
 
 MVP:
@@ -148,6 +159,8 @@ MVP:
 - Photo edit panel: title, caption, alt text, album, publish toggle, delete
 - Album management: create, rename, set cover, reorder, publish
 - Drag to reorder photos within an album
+
+- Homepage settings: upload/replace the hero video and poster, edit the headline, choose and order the featured series
 
 Later:
 - Bulk select actions
@@ -159,9 +172,17 @@ The Django built-in admin stays available for emergency maintenance, moved to an
 
 ## Public site (frontend/) features
 
+Approved design (mockup: https://claude.ai/artifact/SQWVgGMUSuh3m69t8p9SiX): dark gallery look, serif display headings (Fraunces) over a sans body (Inter). No masonry anywhere.
+
+Home page, top to bottom:
+1. Full-screen hero video: autoplay, muted, loop, playsinline, with the poster image first. A semi-transparent dark overlay plus a bottom fade into the page. The site header/nav sits on top of the video. A large headline and a "View the series" button bottom-left, plus a visible pause/play button (required for accessibility). Respect prefers-reduced-motion: show the poster only.
+2. Series gallery: one cover photo per series (4:5), with series title, year and photo count; each opens that series' gallery.
+3. About the photographer: portrait photo on the left, name and story paragraphs on the right, then location and contact links; stacks vertically on phones.
+4. Footer.
+
 MVP:
-- Home: featured albums / latest work
-- Album page: masonry or justified grid using stored width/height (no layout shift)
+- Home page as above
+- Series page: an even grid of photos (uniform cells, not masonry) using stored width/height (no layout shift)
 - Lightbox: full-screen view, keyboard and swipe navigation, caption and EXIF toggle
 - About / Contact page
 - Responsive images (thumbnail in grid, larger variant in lightbox) and lazy loading
@@ -213,4 +234,4 @@ Phase 5 — Domain and multi-user
 - Domain name to buy and when.
 - Whether the public site should show EXIF by default.
 - Whether HEIC uploads from iPhone need server-side conversion (adds a dependency) or should be converted before upload.
-- Visual direction for the public site (minimal white, dark gallery, editorial).
+- Decided 2026-11-27: visual direction is the dark gallery look in the mockup.
