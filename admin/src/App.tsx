@@ -12,7 +12,7 @@ type Tab = 'library' | 'series' | 'homepage' | 'profile'
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'library', label: 'Photos' },
-  { id: 'series', label: 'Series' },
+  { id: 'series', label: 'Projects' },
   { id: 'homepage', label: 'Homepage' },
   { id: 'profile', label: 'About you' },
 ]

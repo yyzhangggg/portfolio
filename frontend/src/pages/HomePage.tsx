@@ -19,7 +19,7 @@ export function HomePage() {
   }, [ready])
 
   useEffect(() => {
-    if (site.status === 'ready') document.title = `${site.data.photographer.display_name} — Photography`
+    if (site.status === 'ready') document.title = `${site.data.photographer.display_name} — Architecture Photography`
   }, [site])
 
   if (site.status === 'loading') return <StatusPage title="Loading…" message="" loading />

@@ -39,8 +39,8 @@ class GalleryApiTests(TestCase):
         get_storage.cache_clear()
         cache.clear()
         User = get_user_model()
-        self.user = User.objects.create_user("yanying", password="a-long-test-password")
-        self.profile = PhotographerProfile.objects.create(user=self.user, slug="yanying", display_name="Yanying Zhang")
+        self.user = User.objects.create_user("ziyue", password="a-long-test-password")
+        self.profile = PhotographerProfile.objects.create(user=self.user, slug="ziyue", display_name="Ziyue")
         HomepageSettings.objects.create(owner=self.user)
         self.other = User.objects.create_user("friend", password="another-long-password")
         PhotographerProfile.objects.create(user=self.other, slug="friend", display_name="Friend")
@@ -74,19 +74,19 @@ class GalleryApiTests(TestCase):
         self.assertEqual(self.client.get("/api/admin/photos/").status_code, 403)
 
     def test_login_and_me(self):
-        res = self.client.post("/api/admin/auth/login/", {"username": "yanying", "password": "a-long-test-password"}, format="json")
+        res = self.client.post("/api/admin/auth/login/", {"username": "ziyue", "password": "a-long-test-password"}, format="json")
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.json()["authenticated"])
-        self.assertEqual(self.client.get("/api/admin/auth/me/").json()["photographer"]["slug"], "yanying")
+        self.assertEqual(self.client.get("/api/admin/auth/me/").json()["photographer"]["slug"], "ziyue")
 
     def test_login_rejects_bad_password(self):
-        res = self.client.post("/api/admin/auth/login/", {"username": "yanying", "password": "nope"}, format="json")
+        res = self.client.post("/api/admin/auth/login/", {"username": "ziyue", "password": "nope"}, format="json")
         self.assertEqual(res.status_code, 400)
 
     def test_login_is_rate_limited(self):
         for _ in range(5):
-            self.client.post("/api/admin/auth/login/", {"username": "yanying", "password": "nope"}, format="json")
-        res = self.client.post("/api/admin/auth/login/", {"username": "yanying", "password": "nope"}, format="json")
+            self.client.post("/api/admin/auth/login/", {"username": "ziyue", "password": "nope"}, format="json")
+        res = self.client.post("/api/admin/auth/login/", {"username": "ziyue", "password": "nope"}, format="json")
         self.assertEqual(res.status_code, 429)
 
     def test_user_without_profile_cannot_log_in(self):
@@ -194,18 +194,18 @@ class GalleryApiTests(TestCase):
         self.upload_photo(album=draft_album, alt_text="x")
         self.client.force_authenticate(None)
 
-        site = self.client.get("/api/public/site/?photographer=yanying").json()
+        site = self.client.get("/api/public/site/?photographer=ziyue").json()
         self.assertEqual([a["slug"] for a in site["albums"]], ["harbour"])
         self.assertEqual(site["albums"][0]["photo_count"], 1)
         self.assertIn("thumb", site["albums"][0]["cover"]["src"])
-        detail = self.client.get("/api/public/albums/harbour/?photographer=yanying").json()
+        detail = self.client.get("/api/public/albums/harbour/?photographer=ziyue").json()
         self.assertEqual(len(detail["photos"]), 1)
         self.assertNotIn("original_key", str(detail))
-        self.assertEqual(self.client.get("/api/public/albums/draft/?photographer=yanying").status_code, 404)
+        self.assertEqual(self.client.get("/api/public/albums/draft/?photographer=ziyue").status_code, 404)
 
     def test_public_site_needs_photographer_when_several(self):
         self.assertEqual(self.client.get("/api/public/site/").status_code, 404)
-        with override_settings(DEFAULT_PHOTOGRAPHER_SLUG="yanying"):
+        with override_settings(DEFAULT_PHOTOGRAPHER_SLUG="ziyue"):
             self.assertEqual(self.client.get("/api/public/site/").status_code, 200)
 
     def test_hero_video_and_poster(self):
@@ -223,3 +223,52 @@ class GalleryApiTests(TestCase):
         self.assertTrue(body["hero_video"]["url"].endswith(".mp4"))
         self.assertIn("large", body["poster"])
         self.assertEqual(body["headline"], "Hello")
+
+    # --- architecture fields, grid ratio and cropping -----------------------
+
+    def test_album_architecture_fields_and_ratio(self):
+        self.login()
+        res = self.client.post(
+            "/api/admin/albums/",
+            {"title": "Maison X", "architect": "Studio Y", "location": "Montréal", "grid_ratio": "3:4"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.content)
+        self.assertEqual((res.json()["architect"], res.json()["grid_ratio"]), ("Studio Y", "3:4"))
+        bad = self.client.post("/api/admin/albums/", {"title": "Z", "grid_ratio": "1:1"}, format="json")
+        self.assertEqual(bad.status_code, 400)
+
+    def test_crop_creates_grid_variants_and_can_be_removed(self):
+        self.login()
+        photo = self.upload_photo().json()  # 1600x1000
+        # 4:3 crop at full height: width 1333px of 1600 -> 0.8333
+        res = self.client.post(
+            f"/api/admin/photos/{photo['id']}/crop/",
+            {"ratio": "4:3", "box": {"x": 0.1, "y": 0, "width": 1000 * 4 / 3 / 1600, "height": 1}},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        body = res.json()
+        self.assertEqual(body["crop"]["ratio"], "4:3")
+        self.assertEqual(body["grid_src"]["ratio"], "4:3")
+        thumb = body["grid_src"]["thumb"]
+        self.assertAlmostEqual(thumb["width"] / thumb["height"], 4 / 3, places=1)
+        # The full variants are untouched.
+        self.assertEqual(body["src"]["large"]["width"], 1600)
+
+        keys = Photo.objects.get(pk=photo["id"]).grid_variants
+        res = self.client.post(f"/api/admin/photos/{photo['id']}/crop/", {"ratio": None}, format="json")
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(res.json()["grid_src"])
+        for v in keys.values():
+            self.assertIsNone(get_storage().size(PUBLIC, v["key"]))
+
+    def test_crop_rejects_wrong_ratio(self):
+        self.login()
+        photo = self.upload_photo().json()
+        res = self.client.post(
+            f"/api/admin/photos/{photo['id']}/crop/",
+            {"ratio": "9:16", "box": {"x": 0, "y": 0, "width": 1, "height": 1}},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)

@@ -1,12 +1,12 @@
-import type { AlbumDetail, Photo, Site } from '../types'
+import type { AlbumDetail, GridRatio, Photo, Site } from '../types'
 
 // Placeholder content used only in development when the API is not running.
 // Images have no URLs, so the site renders tonal placeholders in their place.
 
-const series = [
-  { slug: 'harbour-light', title: '[Series title A]', year: 2026, count: 9 },
-  { slug: 'winter-streets', title: '[Series title B]', year: 2025, count: 6 },
-  { slug: 'quiet-rooms', title: '[Series title C]', year: 2024, count: 4 },
+const series: Array<{ slug: string; title: string; year: number; count: number; ratio: GridRatio }> = [
+  { slug: 'project-a', title: '[Project A]', year: 2026, count: 9, ratio: '4:3' },
+  { slug: 'project-b', title: '[Project B]', year: 2025, count: 6, ratio: '3:4' },
+  { slug: 'project-c', title: '[Project C]', year: 2024, count: 4, ratio: '16:9' },
 ]
 
 const shapes: Array<[number, number]> = [
@@ -29,6 +29,7 @@ function samplePhotos(slug: string, count: number): Photo[] {
       width,
       height,
       src: {},
+      grid_src: null,
       taken_at: null,
       location: '[Location]',
       exif: { camera: '[Camera]', lens: '[Lens]', aperture: 'f/2.8', shutter_speed: '1/250s', iso: 400 },
@@ -38,21 +39,21 @@ function samplePhotos(slug: string, count: number): Photo[] {
 
 export const sampleSite: Site = {
   photographer: {
-    slug: 'yanying',
-    display_name: 'Yanying Zhang',
+    slug: 'ziyue',
+    display_name: 'Ziyue',
     tagline: '',
     bio_paragraphs: [
-      '[Your story: how you started photographing, what draws you to a scene, and what you hope people feel when they look.]',
-      '[A second paragraph: where you shoot, the gear or process you care about, current projects.]',
+      '[Story: how Ziyue came to photograph architecture, and what Ziyue looks for in a building.]',
+      '[A second paragraph: the kinds of projects, clients or practices Ziyue works with.]',
     ],
-    location: 'Montréal',
+    location: '[City]',
     contact_email: '',
     instagram_url: '',
     website_url: '',
     portrait: null,
   },
   homepage: {
-    headline: 'Light, places, and the quiet in between.',
+    headline: 'Architecture photography',
     subheadline: '',
     hero_video: null,
     poster: null,
@@ -61,9 +62,12 @@ export const sampleSite: Site = {
     slug: s.slug,
     title: s.title,
     year: s.year,
-    description: '[A short introduction to this series.]',
+    architect: '[Architect]',
+    location: '[Location]',
+    grid_ratio: s.ratio,
+    description: '[A short introduction to this project.]',
     photo_count: s.count,
-    cover: { alt_text: `Cover of ${s.title}`, width: 2000, height: 2500, src: {} },
+    cover: { alt_text: `Cover of ${s.title}`, width: 3000, height: 2000, src: {}, grid_src: null },
   })),
 }
 

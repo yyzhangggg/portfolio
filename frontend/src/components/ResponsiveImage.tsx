@@ -29,7 +29,7 @@ export function ResponsiveImage({ src, alt, width, height, sizes, from = 'thumb'
         role="img"
         aria-label={alt}
         className={`image-placeholder ${className ?? ''}`}
-        style={{ aspectRatio: `${width} / ${height}`, ...style }}
+        style={{ aspectRatio: `${width} / ${height}`, ['--ar' as string]: width / height, ...style } as CSSProperties}
       />
     )
   }
