@@ -182,6 +182,12 @@ Later:
 - Simple stats (counts, storage used)
 - Second user account for the friend
 
+Account recovery (decided 2026-11-27, not built yet):
+- No email. Forgot password uses **recovery codes**: 10 one-time codes generated when the account is created (shown once by `create_photographer`) and regenerable from the dashboard after re-entering the password. Only hashes are stored.
+- Login page → "Forgot password?" → username + one recovery code + new password. Rate-limited like login; the code is used up; other sessions are signed out.
+- Logged in → About you → "Change password" (current + new) and "Recovery codes" (how many are left; regenerate).
+- Last resort for the maintainer: `python manage.py changepassword <username>` in the Render shell.
+
 The Django built-in admin stays available for emergency maintenance, moved to an obscure path so it does not collide with or get confused with the custom dashboard.
 
 ## Public site (frontend/) features
