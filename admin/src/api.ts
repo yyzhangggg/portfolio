@@ -158,6 +158,19 @@ export const api = {
     return request<Me>('POST', '/auth/login/', { username, password })
   },
   logout: () => request<Me>('POST', '/auth/logout/'),
+  recover: async (username: string, code: string, newPassword: string) => {
+    await request('GET', '/auth/csrf/')
+    return request<Me & { recovery_codes_left?: number }>('POST', '/auth/recover/', {
+      username,
+      code,
+      new_password: newPassword,
+    })
+  },
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: true }>('POST', '/auth/password/', { current_password: currentPassword, new_password: newPassword }),
+  recoveryCodes: () => request<{ remaining: number; total: number }>('GET', '/auth/recovery-codes/'),
+  regenerateRecoveryCodes: (password: string) =>
+    request<{ codes: string[]; remaining: number; total: number }>('POST', '/auth/recovery-codes/', { password }),
 
   albums: () => request<Album[]>('GET', '/albums/'),
   createAlbum: (data: Partial<Album>) => request<Album>('POST', '/albums/', data),

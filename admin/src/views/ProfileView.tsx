@@ -5,6 +5,7 @@ import { FilePicker } from '../components/FilePicker'
 import { Thumb } from '../components/Thumb'
 import { errorText, useNotify } from '../notices'
 import { Progress } from './HomepageView'
+import { SecurityPanel } from './SecurityPanel'
 
 type Draft = Omit<Profile, 'slug' | 'portrait'>
 
@@ -129,6 +130,11 @@ export function ProfileView({ onNameChanged }: { onNameChanged: (name: string) =
           )}
         </section>
       </div>
+
+      <div className="page__head">
+        <h2 className="page__subhead">Sign-in and security</h2>
+      </div>
+      <SecurityPanel />
     </div>
   )
 }

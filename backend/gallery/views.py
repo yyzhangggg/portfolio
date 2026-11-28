@@ -3,7 +3,9 @@ import uuid
 from datetime import timezone as dt_timezone
 
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, get_user_model, login, logout, update_session_auth_hash
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core import signing
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q
@@ -20,6 +22,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from .models import Album, HomepageSettings, PhotographerProfile, Photo, delete_public_keys
+from . import recovery
 from .processing import InvalidCrop, InvalidImage, crop_variants, parse_crop
 from .serializers import (
     AdminAlbumSerializer,
@@ -184,6 +187,87 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(me_payload(request.user))
+
+
+# --- Admin: passwords and recovery codes -------------------------------------
+
+
+def check_new_password(password: str, user, field: str = "new_password"):
+    try:
+        validate_password(password, user)
+    except DjangoValidationError as exc:
+        raise ValidationError({field: list(exc.messages)}) from exc
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class RecoverView(APIView):
+    """Forgot password: username + one recovery code + new password."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
+
+    def post(self, request):
+        username = str(request.data.get("username", "")).strip()
+        code = str(request.data.get("code", ""))
+        new_password = str(request.data.get("new_password", ""))
+        failure = Response({"detail": "Username or recovery code is incorrect."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = get_user_model().objects.filter(username=username, is_active=True).first()
+        if user is None or photographer_of(user) is None:
+            return failure
+        match = recovery.find_unused(user, code)
+        if match is None:
+            return failure
+        # Check the new password before using the code up.
+        check_new_password(new_password, user)
+        with transaction.atomic():
+            if not recovery.use(match):
+                return failure
+            # Changing the password signs out every other session.
+            user.set_password(new_password)
+            user.save(update_fields=["password"])
+        login(request, user)
+        payload = me_payload(user)
+        payload["recovery_codes_left"] = recovery.remaining(user)
+        return Response(payload)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsPhotographer]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
+
+    def post(self, request):
+        user = request.user
+        if not user.check_password(str(request.data.get("current_password", ""))):
+            raise ValidationError({"current_password": "Current password is incorrect."})
+        new_password = str(request.data.get("new_password", ""))
+        check_new_password(new_password, user)
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+        # Keep this session signed in; others are signed out.
+        update_session_auth_hash(request, user)
+        return Response({"ok": True})
+
+
+class RecoveryCodesView(APIView):
+    permission_classes = [IsPhotographer]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
+
+    def get_throttles(self):
+        # Only regenerating (which checks the password) is rate-limited.
+        return super().get_throttles() if self.request.method == "POST" else []
+
+    def get(self, request):
+        return Response({"remaining": recovery.remaining(request.user), "total": recovery.CODE_COUNT})
+
+    def post(self, request):
+        if not request.user.check_password(str(request.data.get("password", ""))):
+            raise ValidationError({"password": "Password is incorrect."})
+        codes = recovery.generate_codes(request.user)
+        return Response({"codes": codes, "remaining": len(codes), "total": recovery.CODE_COUNT})
 
 
 # --- Admin: uploads ---------------------------------------------------------

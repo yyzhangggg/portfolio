@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils.text import slugify
 
 from gallery.models import HomepageSettings, PhotographerProfile
+from gallery.recovery import generate_codes
 
 
 class Command(BaseCommand):
@@ -48,4 +49,14 @@ class Command(BaseCommand):
             contact_email=opts["email"],
         )
         HomepageSettings.objects.create(owner=user)
+        codes = generate_codes(user)
         self.stdout.write(self.style.SUCCESS(f"Created photographer {opts['display_name']} ({slug})."))
+        print_codes(self.stdout, codes)
+
+
+def print_codes(out, codes):
+    out.write("")
+    out.write("Recovery codes (each works once; they are shown only now):")
+    for code in codes:
+        out.write(f"  {code}")
+    out.write("Give these to the photographer to keep somewhere safe, e.g. a password manager.")

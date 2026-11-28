@@ -272,3 +272,73 @@ class GalleryApiTests(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
+
+    # --- account recovery ---------------------------------------------------
+
+    def test_recover_with_code_then_code_is_used_up(self):
+        from gallery.recovery import generate_codes
+
+        codes = generate_codes(self.user)
+        res = self.client.post(
+            "/api/admin/auth/recover/",
+            {"username": "ziyue", "code": codes[0].lower().replace("-", " "), "new_password": "brand-new-password-42"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertTrue(res.json()["authenticated"])
+        self.assertEqual(res.json()["recovery_codes_left"], 9)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("brand-new-password-42"))
+
+        cache.clear()
+        again = self.client.post(
+            "/api/admin/auth/recover/",
+            {"username": "ziyue", "code": codes[0], "new_password": "another-new-password-42"},
+            format="json",
+        )
+        self.assertEqual(again.status_code, 400)
+
+    def test_recover_rejects_wrong_code_and_weak_password(self):
+        from gallery.recovery import generate_codes
+
+        codes = generate_codes(self.user)
+        wrong = self.client.post(
+            "/api/admin/auth/recover/",
+            {"username": "ziyue", "code": "AAAA-BBBB-CCCC", "new_password": "brand-new-password-42"},
+            format="json",
+        )
+        self.assertEqual(wrong.status_code, 400)
+        weak = self.client.post(
+            "/api/admin/auth/recover/", {"username": "ziyue", "code": codes[1], "new_password": "123"}, format="json"
+        )
+        self.assertEqual(weak.status_code, 400)
+        self.assertIn("new_password", weak.json())
+        # A rejected password does not use the code up.
+        from gallery.recovery import remaining
+
+        self.assertEqual(remaining(self.user), 10)
+
+    def test_change_password(self):
+        self.login()
+        bad = self.client.post(
+            "/api/admin/auth/password/", {"current_password": "nope", "new_password": "brand-new-password-42"}, format="json"
+        )
+        self.assertEqual(bad.status_code, 400)
+        ok = self.client.post(
+            "/api/admin/auth/password/",
+            {"current_password": "a-long-test-password", "new_password": "brand-new-password-42"},
+            format="json",
+        )
+        self.assertEqual(ok.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("brand-new-password-42"))
+
+    def test_regenerate_recovery_codes_needs_password(self):
+        self.login()
+        self.assertEqual(self.client.get("/api/admin/auth/recovery-codes/").json()["remaining"], 0)
+        bad = self.client.post("/api/admin/auth/recovery-codes/", {"password": "nope"}, format="json")
+        self.assertEqual(bad.status_code, 400)
+        ok = self.client.post("/api/admin/auth/recovery-codes/", {"password": "a-long-test-password"}, format="json")
+        self.assertEqual(ok.status_code, 200)
+        self.assertEqual(len(ok.json()["codes"]), 10)
+        self.assertRegex(ok.json()["codes"][0], r"^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$")

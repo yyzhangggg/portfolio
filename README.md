@@ -48,6 +48,9 @@ Django's own admin (for maintenance) is at `http://127.0.0.1:8000/backstage-main
 
 ## Tests
 
+Full pre-merge checklist (automated and manual): [`docs/testing.md`](docs/testing.md).
+
+
 ```sh
 cd backend
 .venv/bin/python manage.py test gallery              # API tests

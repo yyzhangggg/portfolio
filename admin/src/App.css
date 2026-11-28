@@ -1002,3 +1002,49 @@
   flex: 1;
   min-height: 44px;
 }
+
+/* ---------- Security ---------- */
+
+.page__subhead {
+  margin: 12px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.login__alt {
+  margin-top: 8px;
+}
+
+.login__note {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.codes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: #fff8e6;
+  border: 1px solid #ecd9a8;
+  border-radius: 10px;
+}
+
+.codes p {
+  margin: 0;
+}
+
+.codes__list {
+  margin: 0;
+  padding-left: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 24px;
+}
+
+.codes__list code {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  user-select: all;
+}
