@@ -50,7 +50,9 @@ Pick the names now (e.g. `ziyue-api`, `ziyue`, `ziyue-admin`) so you can fill th
    - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
    - `R2_PRIVATE_BUCKET`: `ziyue-originals`; `R2_PUBLIC_BUCKET`: `ziyue-public`
    - `R2_PUBLIC_BASE_URL`: the r2.dev URL from step 2.2 (no trailing slash)
-4. After the first deploy, open the service → **Shell** and create your account:
+4. Create the photographer account. **Without a shell (free plan):** set `INITIAL_USERNAME`, `INITIAL_PASSWORD` and `INITIAL_DISPLAY_NAME` in Render's environment, and make sure the build command ends with `&& python manage.py ensure_initial_photographer`. Deploy, check the build log for `ensure_initial_photographer: created …`, then **delete `INITIAL_PASSWORD`** from the environment. Ziyue then signs in and creates recovery codes under About you → Sign-in and security.
+
+   **With a shell (paid plans),** open the service → **Shell** instead and run:
 
    ```sh
    python manage.py create_photographer ziyue --display-name "Ziyue" --slug ziyue

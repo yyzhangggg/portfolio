@@ -10,7 +10,8 @@ services:
     buildCommand: >-
       pip install -r requirements.txt &&
       python manage.py collectstatic --noinput &&
-      python manage.py migrate --noinput
+      python manage.py migrate --noinput &&
+      python manage.py ensure_initial_photographer
     # One process (512 MB on the free plan) with threads: image processing releases
     # the GIL, and the login rate limit is shared within the process.
     startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
@@ -31,6 +32,14 @@ services:
       - key: DATABASE_URL
         sync: false # Neon connection string, with ?sslmode=require
       - key: DEFAULT_PHOTOGRAPHER_SLUG
+        sync: false
+      # First account, created on deploy if it doesn't exist yet (no shell on the free plan).
+      # Remove INITIAL_PASSWORD once the account exists.
+      - key: INITIAL_USERNAME
+        sync: false
+      - key: INITIAL_PASSWORD
+        sync: false
+      - key: INITIAL_DISPLAY_NAME
         sync: false
       - key: R2_ACCOUNT_ID
         sync: false

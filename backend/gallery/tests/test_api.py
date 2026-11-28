@@ -342,3 +342,41 @@ class GalleryApiTests(TestCase):
         self.assertEqual(ok.status_code, 200)
         self.assertEqual(len(ok.json()["codes"]), 10)
         self.assertRegex(ok.json()["codes"][0], r"^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$")
+
+
+class EnsureInitialPhotographerTests(TestCase):
+    def run_cmd(self, **env):
+        import os
+        from io import StringIO
+        from unittest import mock
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        with mock.patch.dict(os.environ, env, clear=False):
+            for key in ("INITIAL_USERNAME", "INITIAL_PASSWORD", "INITIAL_DISPLAY_NAME", "INITIAL_SLUG", "INITIAL_STAFF"):
+                if key not in env:
+                    os.environ.pop(key, None)
+            call_command("ensure_initial_photographer", stdout=out)
+        return out.getvalue()
+
+    def test_skips_without_variables(self):
+        self.assertIn("skipping", self.run_cmd())
+        self.assertFalse(get_user_model().objects.exists())
+
+    def test_creates_once_and_does_not_reset_password(self):
+        out = self.run_cmd(INITIAL_USERNAME="ziyue", INITIAL_PASSWORD="a-long-test-password", INITIAL_DISPLAY_NAME="Ziyue")
+        self.assertIn("created", out)
+        user = get_user_model().objects.get(username="ziyue")
+        self.assertEqual(user.photographer.slug, "ziyue")
+        self.assertTrue(HomepageSettings.objects.filter(owner=user).exists())
+        again = self.run_cmd(INITIAL_USERNAME="ziyue", INITIAL_PASSWORD="different-password-123")
+        self.assertIn("already exists", again)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("a-long-test-password"))
+
+    def test_rejects_weak_password(self):
+        from django.core.management.base import CommandError
+
+        with self.assertRaises(CommandError):
+            self.run_cmd(INITIAL_USERNAME="ziyue", INITIAL_PASSWORD="123")
