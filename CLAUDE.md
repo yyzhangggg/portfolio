@@ -17,10 +17,11 @@ Planning and architecture document for turning this repo into a personal photogr
 
 ## Current state of the repo (as of 2026-11-27)
 
-- `frontend/` — Vite + React 19 + TypeScript public site; shows hard-coded sample data from `src/data/sampleProjects.ts`.
-- `admin/` — Vite + React + TypeScript app; placeholder only, no login or editing.
-- `backend/` — Django 5.2 + Django REST Framework. App `projects` with models `Project` and `ProjectImage` (image stored only as a URL). SQLite. Settings read from a root `.env` via python-dotenv.
-- No real file upload, no object storage, no auth for a custom admin, no deployment config.
+- `backend/` — Django 5.2 + DRF, app `gallery` (replaces the old `projects` app). Models, storage, uploads, public and admin APIs, session login, Render blueprint (`render.yaml`) are in place. `gallery/migrations/0001_initial.py` was hand-written (no Django available where it was authored); run `makemigrations --check` once locally.
+- `frontend/` — public site implementing the approved design; reads `/api/public/*`, falls back to sample content in development only. `vercel.json` holds the rewrites (Render URL placeholder to fill in).
+- `admin/` — still the placeholder. Next step: build the dashboard against the admin API.
+
+Decisions (2026-11-27): photos are **JPEG only** (no HEIC/PNG/WebP uploads); **originals are kept** (private bucket) while the library is small — revisit if storage grows.
 
 ## Target architecture
 
@@ -97,8 +98,8 @@ All content belongs to an owner so a second photographer can be added later.
 **Photo** (replaces `ProjectImage`)
 - owner → User
 - album → Album (nullable, so a photo can sit in an "unsorted" pool)
-- storage key of the original in R2
-- storage keys of generated variants (thumbnail, medium, large; WebP)
+- storage key of the original in the private R2 bucket (kept)
+- storage keys of generated variants in the public bucket (thumb 480px, medium 1200px, large 2400px longest edge; WebP, no EXIF)
 - width, height (needed for layout without content shift)
 - title, caption, alt text (required for accessibility before publishing)
 - taken_at, location (optional, free text)
@@ -146,7 +147,9 @@ Permissions: every admin query is filtered by `owner = request.user`; no user ca
 5. API generates resized WebP variants and reads EXIF. On the free tier this runs inline in the confirm request (acceptable for ~50 photos); move to a background job later if it gets slow.
 6. Admin shows the new photos in an "unsorted / drafts" area to add alt text, captions and album, then publish.
 
-Limits to enforce: accepted types (JPEG, PNG, HEIC→convert if feasible, WebP), max file size, max dimensions.
+Limits enforced: JPEG only (checked by content, not just the declared type), 40 MB, 80 megapixels; video MP4/WebM up to 30 MB. All configurable via env.
+
+Storage uses two R2 buckets: private (originals) and public (variants, hero video). Locally, `backend/media/{private,public}` with a dev-only signed PUT endpoint that mimics presigned URLs.
 
 Hero video uploads use the same presigned direct-to-R2 flow. The server does not transcode video on the free tier, so the admin asks for an already-compressed file: MP4 (H.264), roughly 10–20 seconds, a few MB, no audio needed. Enforce a size cap and accepted types; a poster image is required alongside it.
 
@@ -200,7 +203,7 @@ Never commit secrets. Set in each provider's dashboard:
 - Vercel (both projects): API base path / rewrite target.
 - Local: root `.env` (already git-ignored), SQLite allowed locally.
 
-Backend production additions needed: gunicorn, a Postgres driver, a database-URL parser, django-storages with the S3 backend (pointed at R2), an image library for resizing and EXIF, and WhiteNoise (or equivalent) for Django's own static files.
+Backend production dependencies (in `backend/requirements.txt`): gunicorn, psycopg, dj-database-url, boto3 (R2 via its S3 API, used directly rather than django-storages), Pillow, WhiteNoise.
 
 ## Roadmap
 
@@ -233,5 +236,5 @@ Phase 5 — Domain and multi-user
 
 - Domain name to buy and when.
 - Whether the public site should show EXIF by default.
-- Whether HEIC uploads from iPhone need server-side conversion (adds a dependency) or should be converted before upload.
+- Decided 2026-11-27: no HEIC support; JPEG only. Keep originals for now.
 - Decided 2026-11-27: visual direction is the dark gallery look in the mockup.

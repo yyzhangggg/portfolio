@@ -6,3 +6,5 @@
 *.py[cod]
 backend/db.sqlite3
 *.tsbuildinfo
+backend/media/
+backend/staticfiles/

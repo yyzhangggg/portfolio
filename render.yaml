@@ -1,0 +1,44 @@
+# Render Blueprint for the Django API (free instance).
+# Secrets marked `sync: false` are entered in the Render dashboard, never here.
+services:
+  - type: web
+    name: portfolio-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    # Free instances have no pre-deploy step, so migrations run during the build.
+    buildCommand: >-
+      pip install -r requirements.txt &&
+      python manage.py collectstatic --noinput &&
+      python manage.py migrate --noinput
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    healthCheckPath: /api/health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.1"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false # e.g. portfolio-api.onrender.com
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        sync: false # e.g. https://you.vercel.app,https://you-admin.vercel.app
+      - key: DJANGO_ADMIN_PATH
+        sync: false # an unguessable path for Django's maintenance admin
+      - key: DATABASE_URL
+        sync: false # Neon connection string, with ?sslmode=require
+      - key: DEFAULT_PHOTOGRAPHER_SLUG
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_PRIVATE_BUCKET
+        sync: false
+      - key: R2_PUBLIC_BUCKET
+        sync: false
+      - key: R2_PUBLIC_BASE_URL
+        sync: false # e.g. https://pub-xxxx.r2.dev or https://photos.example.com
