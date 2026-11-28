@@ -9,16 +9,27 @@ EXIF_FIELDS = ("camera", "lens", "focal_length", "aperture", "shutter_speed", "i
 # --- Public (read-only, published content only) ----------------------------
 
 
+def grid_src(photo):
+    """Cropped variants when the photographer chose a crop, else None (use src)."""
+    if not photo.crop or not photo.grid_variants:
+        return None
+    return {"ratio": photo.crop.get("ratio"), **variant_urls(photo.grid_variants)}
+
+
 class PublicPhotoSerializer(serializers.ModelSerializer):
     src = serializers.SerializerMethodField()
+    grid_src = serializers.SerializerMethodField()
     exif = serializers.SerializerMethodField()
 
     class Meta:
         model = Photo
-        fields = ["id", "title", "caption", "alt_text", "width", "height", "src", "taken_at", "location", "exif"]
+        fields = ["id", "title", "caption", "alt_text", "width", "height", "src", "grid_src", "taken_at", "location", "exif"]
 
     def get_src(self, photo):
         return variant_urls(photo.variants)
+
+    def get_grid_src(self, photo):
+        return grid_src(photo)
 
     def get_exif(self, photo):
         return {f: getattr(photo, f) for f in EXIF_FIELDS if getattr(photo, f) not in ("", None)}
@@ -26,13 +37,17 @@ class PublicPhotoSerializer(serializers.ModelSerializer):
 
 class PublicCoverSerializer(serializers.ModelSerializer):
     src = serializers.SerializerMethodField()
+    grid_src = serializers.SerializerMethodField()
 
     class Meta:
         model = Photo
-        fields = ["alt_text", "width", "height", "src"]
+        fields = ["alt_text", "width", "height", "src", "grid_src"]
 
     def get_src(self, photo):
         return variant_urls(photo.variants)
+
+    def get_grid_src(self, photo):
+        return grid_src(photo)
 
 
 class PublicAlbumSerializer(serializers.ModelSerializer):
@@ -41,7 +56,7 @@ class PublicAlbumSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Album
-        fields = ["slug", "title", "year", "description", "photo_count", "cover"]
+        fields = ["slug", "title", "year", "architect", "location", "grid_ratio", "description", "photo_count", "cover"]
 
     def get_cover(self, album):
         cover = getattr(album, "public_cover", None)
@@ -137,6 +152,9 @@ class AdminAlbumSerializer(serializers.ModelSerializer):
             "slug",
             "description",
             "year",
+            "architect",
+            "location",
+            "grid_ratio",
             "cover",
             "cover_src",
             "is_published",
@@ -148,7 +166,9 @@ class AdminAlbumSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_cover_src(self, album):
-        return variant_urls(album.cover.variants) if album.cover_id else None
+        if not album.cover_id:
+            return None
+        return variant_urls(album.cover.grid_variants or album.cover.variants)
 
     def validate_cover(self, cover):
         if cover is None:
@@ -190,6 +210,8 @@ class AdminPhotoSerializer(serializers.ModelSerializer):
             "is_published",
             "display_order",
             "src",
+            "crop",
+            "grid_src",
             "width",
             "height",
             "file_size",
@@ -197,7 +219,18 @@ class AdminPhotoSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "src", "width", "height", "file_size", "original_filename", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "src",
+            "crop",
+            "grid_src",
+            "width",
+            "height",
+            "file_size",
+            "original_filename",
+            "created_at",
+            "updated_at",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -207,6 +240,9 @@ class AdminPhotoSerializer(serializers.ModelSerializer):
 
     def get_src(self, photo):
         return variant_urls(photo.variants)
+
+    def get_grid_src(self, photo):
+        return grid_src(photo)
 
     def validate(self, attrs):
         published = attrs.get("is_published", self.instance.is_published if self.instance else False)
@@ -230,6 +266,13 @@ class PhotoCreateSerializer(serializers.Serializer):
         request = self.context.get("request")
         if request is not None and request.user.is_authenticated:
             self.fields["album"].queryset = Album.objects.filter(owner=request.user)
+
+
+class CropSerializer(serializers.Serializer):
+    """{"ratio": "4:3", "box": {x, y, width, height}} to crop; {"ratio": null} to remove."""
+
+    ratio = serializers.CharField(allow_null=True)
+    box = serializers.DictField(child=serializers.FloatField(), required=False)
 
 
 class IdsSerializer(serializers.Serializer):

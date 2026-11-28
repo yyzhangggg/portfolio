@@ -1,12 +1,14 @@
-# CLAUDE.md — Photography Portfolio
+# CLAUDE.md — Architecture Photography Portfolio
 
-Planning and architecture document for turning this repo into a personal photography website with a self-service admin dashboard.
+Planning and architecture document for an architecture-photography portfolio with a self-service admin dashboard.
 
 ## Goal
 
-- Public site: showcase photos organized into albums/series.
-- Admin dashboard on its own subdomain: log in, upload, organize, edit, publish and delete photos without touching code.
-- Single owner for now (Yanying). The data model must allow a second photographer (a friend) to be added later without restructuring.
+- The site belongs to **Ziyue** (a friend of Yanying), an architecture photographer. Yanying builds and maintains it; Yanying's own name does not appear on the public site.
+- Public site: showcase architecture projects ("series" in the code, "Projects" in the UI), each a gallery of photos.
+- Admin dashboard on its own subdomain: Ziyue logs in, uploads, organizes, edits, publishes and deletes photos without touching code.
+- Not linked into Yanying's own GitHub homepage. Later, Yanying's networking page will link out to this site (where that page lives, and the final URL/slug, are not decided yet).
+- The data model still supports more than one photographer.
 - Run at $0/month to start.
 
 ## Collaboration rules for Claude
@@ -89,9 +91,11 @@ All content belongs to an owner so a second photographer can be added later.
 - slug (used in public URLs later, e.g. `/u/<slug>`)
 - display name, bio, avatar, contact links
 
-**Album** (replaces `Project`)
+**Album** (replaces `Project`) — one architecture project
 - owner → User
 - title, slug (unique per owner), description
+- architect / practice, location, year
+- grid_ratio: 3:4, 4:3, 16:9 or 9:16 — shape of the cells on the project page
 - cover photo (optional → Photo)
 - is_published, display_order
 - created_at, updated_at
@@ -105,6 +109,7 @@ All content belongs to an owner so a second photographer can be added later.
 - title, caption, alt text (required for accessibility before publishing)
 - taken_at, location (optional, free text)
 - EXIF fields (camera, lens, focal length, aperture, shutter speed, ISO) — extracted on upload; GPS stripped by default for privacy
+- crop (optional): ratio + box over the oriented original; grid_variants (thumb, medium) generated from it. Used only for grid thumbnails and covers; the lightbox always shows the whole photo
 - is_published, display_order
 - created_at, updated_at
 
@@ -113,7 +118,7 @@ All content belongs to an owner so a second photographer can be added later.
 - hero video: storage key in R2 (MP4/H.264, optional WebM), duration, size
 - hero poster image: storage key (shown while the video loads, and to users with reduced-motion enabled)
 - hero headline and optional sub-line
-- featured series (ordered list of Albums shown on the home page)
+- (the home page shows every published project, in the order set in the dashboard; there is no separate "featured" list)
 
 Migration path: rename/replace the existing `projects` app models; existing data is sample-only, so a clean migration is acceptable.
 
@@ -145,7 +150,7 @@ Permissions: every admin query is filtered by `owner = request.user`; no user ca
 2. For each file, the admin asks the API for a presigned upload URL for R2.
 3. Browser uploads the file directly to R2 (progress bar per file). The large file never touches Vercel or Render.
 4. Admin calls "confirm upload"; API creates the Photo record (unpublished by default).
-5. API generates resized WebP variants and reads EXIF. On the free tier this runs inline in the confirm request (acceptable for ~50 photos); move to a background job later if it gets slow.
+5. API generates resized WebP variants and reads EXIF. On the free tier this runs inline in the confirm request (acceptable for ~50 photos); move to a background job later if it gets slow. JPEGs are decoded at reduced scale (Pillow draft mode) and the dashboard uploads one photo at a time; gunicorn runs 1 worker with 4 threads to stay within 512 MB.
 6. Admin shows the new photos in an "unsorted / drafts" area to add alt text, captions and album, then publish.
 
 Limits enforced: JPEG only (checked by content, not just the declared type), 40 MB, 80 megapixels; video MP4/WebM up to 30 MB. All configurable via env.
@@ -166,7 +171,7 @@ MVP:
 
 - Homepage settings: upload/replace the hero video and poster, edit the headline, choose and order the featured series
 
-Admin cropping (planned):
+Admin cropping (built):
 - Each series has a grid ratio setting: 3:4, 4:3, 16:9 or 9:16.
 - When uploading or editing a photo, the photographer may crop it to a ratio. The crop is stored as a box over the kept original, so it can always be changed or removed; variants are regenerated from the original.
 - Uncropped photos are shown whole on the public site, inside the series' cell ratio with margins.
@@ -177,6 +182,12 @@ Later:
 - Simple stats (counts, storage used)
 - Second user account for the friend
 
+Account recovery (decided 2026-11-27, not built yet):
+- No email. Forgot password uses **recovery codes**: 10 one-time codes generated when the account is created (shown once by `create_photographer`) and regenerable from the dashboard after re-entering the password. Only hashes are stored.
+- Login page → "Forgot password?" → username + one recovery code + new password. Rate-limited like login; the code is used up; other sessions are signed out.
+- Logged in → About you → "Change password" (current + new) and "Recovery codes" (how many are left; regenerate).
+- Last resort for the maintainer: `python manage.py changepassword <username>` in the Render shell.
+
 The Django built-in admin stays available for emergency maintenance, moved to an obscure path so it does not collide with or get confused with the custom dashboard.
 
 ## Public site (frontend/) features
@@ -185,12 +196,12 @@ Approved design (mockup: https://claude.ai/artifact/SQWVgGMUSuh3m69t8p9SiX): dar
 
 Home page, top to bottom:
 1. Full-screen hero video: autoplay, muted, loop, playsinline, with the poster image first. A semi-transparent dark overlay plus a bottom fade into the page. The site header/nav sits on top of the video. A large headline and a "View the series" button bottom-left, plus a visible pause/play button (required for accessibility). Respect prefers-reduced-motion: show the poster only.
-2. Series gallery: one cover photo per series (4:5), with series title, year and photo count; each opens that series' gallery.
+2. Projects: one cover per project in a uniform 3:4 frame, shown whole (not cropped) unless the photographer cropped it to 3:4; title, then architect · location · year.
 3. About the photographer: portrait photo on the left, name and story paragraphs on the right, then location and contact links; stacks vertically on phones.
 4. Footer.
 
 MVP:
-- Home page as above
+- Home page as above. Default headline: "Architecture photography" (editable in the dashboard).
 - Series page: an even grid of uniform cells (not masonry). The cell aspect ratio is chosen per series in the admin: 3:4, 4:3, 16:9 or 9:16. Photos are **never cropped on the public site**: each sits whole inside its cell (contain), with even margins around it. Uses stored width/height (no layout shift).
 - Cropping happens only in the admin, as an explicit choice by the photographer (see "Admin cropping" below); the original is always kept.
 - Lightbox: full-screen view, keyboard and swipe navigation, caption and EXIF toggle. Info panel open by default on desktop, closed by default on phones (decided 2026-11-27).
@@ -199,7 +210,7 @@ MVP:
 - Accessibility: alt text on every image, keyboard-navigable lightbox, visible focus states, sufficient contrast
 
 Later:
-- Per-photographer pages (`/u/<slug>`) when the friend joins
+- Per-photographer pages (`/u/<slug>`) if another photographer is added
 - Open Graph images for sharing
 - Optional watermark or right-click deterrent (note: cannot truly prevent copying)
 
@@ -237,13 +248,13 @@ Phase 4 — Deploy
 
 Phase 5 — Domain and multi-user
 - Buy domain, map apex/www/admin (and optionally photos/api) subdomains
-- Add friend's account and per-photographer public pages
+- Per-photographer public pages, if ever needed
 
 ## Open questions
 
 - Domain name to buy and when.
 - Decided 2026-11-27: lightbox info panel open by default on desktop, closed on phones.
 - Decided 2026-11-27: no cropping on the public site; per-series cell ratio (3:4 / 4:3 / 16:9 / 9:16) set in the admin; optional cropping only in the admin.
-- To confirm: does an admin crop apply only to the grid thumbnail, or also to the lightbox and series cover?
+- Default chosen 2026-11-27 (confirm with Yanying): an admin crop applies to grid thumbnails and covers only; the lightbox always shows the whole photo.
 - Decided 2026-11-27: no HEIC support; JPEG only. Keep originals for now.
 - Decided 2026-11-27: visual direction is the dark gallery look in the mockup.

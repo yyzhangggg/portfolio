@@ -80,7 +80,7 @@ export function HeroVideo({ homepage, header }: Props) {
           </div>
           <div className="hero__actions">
             <a className="button button--light" href="#series">
-              View the series
+              View projects
             </a>
             {showVideo && (
               <button

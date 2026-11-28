@@ -11,7 +11,9 @@ services:
       pip install -r requirements.txt &&
       python manage.py collectstatic --noinput &&
       python manage.py migrate --noinput
-    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    # One process (512 MB on the free plan) with threads: image processing releases
+    # the GIL, and the login rate limit is shared within the process.
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
     healthCheckPath: /api/health/
     envVars:
       - key: PYTHON_VERSION

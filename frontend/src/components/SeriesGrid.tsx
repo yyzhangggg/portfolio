@@ -1,15 +1,15 @@
 import { Link } from '../router'
 import type { AlbumSummary } from '../types'
-import { ResponsiveImage } from './ResponsiveImage'
+import { FramedImage } from './FramedImage'
 
 export function SeriesGrid({ albums }: { albums: AlbumSummary[] }) {
   return (
     <section id="series" className="section container" aria-labelledby="series-heading">
       <div className="section__head">
         <h2 id="series-heading" className="display-2">
-          Series
+          Projects
         </h2>
-        <p className="muted">Each series opens into its own gallery.</p>
+        <p className="muted">Each project opens into its own gallery.</p>
       </div>
 
       {albums.length === 0 ? (
@@ -19,19 +19,17 @@ export function SeriesGrid({ albums }: { albums: AlbumSummary[] }) {
           {albums.map((album) => (
             <li key={album.slug}>
               <Link to={`/series/${encodeURIComponent(album.slug)}`} className="series-card">
-                <div className="series-card__cover">
-                  <ResponsiveImage
-                    src={album.cover?.src}
-                    alt={album.cover?.alt_text ?? ''}
-                    width={album.cover?.width ?? 4}
-                    height={album.cover?.height ?? 5}
-                    sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 380px"
-                  />
-                </div>
+                {/* Covers share one shape on the home page; a 3:4 crop in the dashboard fills it exactly. */}
+                <FramedImage
+                  image={album.cover}
+                  ratio="3:4"
+                  alt={album.cover?.alt_text ?? ''}
+                  sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 380px"
+                />
                 <span className="series-card__title">{album.title}</span>
                 <span className="series-card__meta">
-                  {album.year ? `${album.year} · ` : ''}
-                  {album.photo_count} {album.photo_count === 1 ? 'photo' : 'photos'}
+                  {[album.architect, album.location, album.year].filter(Boolean).join(' · ') ||
+                    `${album.photo_count} ${album.photo_count === 1 ? 'photo' : 'photos'}`}
                 </span>
               </Link>
             </li>

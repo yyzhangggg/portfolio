@@ -1,6 +1,8 @@
-# Portfolio — photography site
+# Ziyue — architecture photography portfolio
 
-A personal photography website with a self-service dashboard. See `CLAUDE.md` for the full plan and decisions.
+An architecture-photography portfolio with a self-service dashboard. See `CLAUDE.md` for the full plan and decisions.
+
+Photos are never cropped on the public site: each project has a grid shape (3:4, 4:3, 16:9 or 9:16) and photos sit whole inside their cells. The photographer can optionally crop a photo's grid thumbnail in the dashboard; the original is kept and the full photo still opens in the lightbox.
 
 ## Structure
 
@@ -20,7 +22,7 @@ Uploads go straight from the browser to storage (Cloudflare R2 in production, `b
    python3 -m venv backend/.venv
    backend/.venv/bin/pip install -r backend/requirements.txt
    backend/.venv/bin/python backend/manage.py migrate
-   backend/.venv/bin/python backend/manage.py create_photographer yanying --display-name "Yanying Zhang" --slug yanying --staff
+   backend/.venv/bin/python backend/manage.py create_photographer ziyue --display-name "Ziyue" --slug ziyue --staff
    backend/.venv/bin/python backend/manage.py runserver
    ```
 

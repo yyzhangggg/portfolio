@@ -6,6 +6,17 @@
 export type ImageVariant = { url: string; width: number; height: number }
 export type ImageSources = Partial<Record<'thumb' | 'medium' | 'large', ImageVariant>>
 
+export type GridRatio = '3:4' | '4:3' | '16:9' | '9:16'
+
+export const GRID_RATIOS: Array<{ value: GridRatio; label: string; ratio: number }> = [
+  { value: '4:3', label: '4:3 landscape', ratio: 4 / 3 },
+  { value: '3:4', label: '3:4 portrait', ratio: 3 / 4 },
+  { value: '16:9', label: '16:9 wide', ratio: 16 / 9 },
+  { value: '9:16', label: '9:16 tall', ratio: 9 / 16 },
+]
+
+export type CropBox = { x: number; y: number; width: number; height: number }
+
 export type Me =
   | { authenticated: false }
   | { authenticated: true; username: string; photographer: { slug: string; display_name: string } }
@@ -16,6 +27,9 @@ export type Album = {
   slug: string
   description: string
   year: number | null
+  architect: string
+  location: string
+  grid_ratio: GridRatio
   cover: number | null
   cover_src: ImageSources | null
   is_published: boolean
@@ -40,6 +54,8 @@ export type Photo = {
   is_published: boolean
   display_order: number
   src: ImageSources
+  crop: { ratio: GridRatio; box: CropBox } | null
+  grid_src: (ImageSources & { ratio: GridRatio }) | null
   width: number
   height: number
   file_size: number
@@ -160,6 +176,8 @@ export const api = {
     request<Photo>('POST', '/photos/', data),
   updatePhoto: (id: number, data: Partial<Photo>) => request<Photo>('PATCH', `/photos/${id}/`, data),
   deletePhoto: (id: number) => request<void>('DELETE', `/photos/${id}/`),
+  cropPhoto: (id: number, crop: { ratio: GridRatio; box: CropBox } | null) =>
+    request<Photo>('POST', `/photos/${id}/crop/`, crop ?? { ratio: null }),
   reorderPhotos: (ids: number[]) => request<void>('POST', '/photos/reorder/', { ids }),
   bulkPhotos: (ids: number[], action: 'publish' | 'unpublish' | 'delete' | 'move', album?: number | null) =>
     request<{ updated?: number; deleted?: number; skipped_missing_alt_text?: number[] }>('POST', '/photos/bulk/', {

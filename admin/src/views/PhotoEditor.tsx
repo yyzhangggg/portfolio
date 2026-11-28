@@ -3,6 +3,7 @@ import { api, ApiError, formatBytes, type Album, type Photo } from '../api'
 import { SelectField, TextArea, TextField } from '../components/Field'
 import { Thumb } from '../components/Thumb'
 import { errorText, useNotify } from '../notices'
+import { CropEditor } from './CropEditor'
 
 type Props = {
   photo: Photo
@@ -30,12 +31,18 @@ export function PhotoEditor({ photo, albums, canMove, onMove, onSaved, onDeleted
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [cropping, setCropping] = useState(false)
 
   useEffect(() => {
     setDraft(toDraft(photo))
     setErrors({})
     setConfirmDelete(false)
   }, [photo])
+
+  useEffect(() => setCropping(false), [photo.id])
+
+  const album = albums.find((a) => a.id === photo.album)
+  const defaultRatio = album?.grid_ratio ?? '4:3'
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(toDraft(photo))
   const set = (field: keyof Draft) => (value: string) => setDraft((d) => ({ ...d, [field]: value }))
@@ -92,6 +99,19 @@ export function PhotoEditor({ photo, albums, canMove, onMove, onSaved, onDeleted
         {photo.original_filename || 'Original'} · {photo.width}×{photo.height} · {formatBytes(photo.file_size)}
       </p>
 
+      {cropping ? (
+        <CropEditor photo={photo} defaultRatio={defaultRatio} onSaved={onSaved} onClose={() => setCropping(false)} />
+      ) : (
+        <div className="editor__crop">
+          <span className="field__hint">
+            {photo.crop ? `Grid thumbnail cropped to ${photo.crop.ratio}.` : 'Shown whole in grids (not cropped).'}
+          </span>
+          <button type="button" className="btn btn--small" onClick={() => setCropping(true)}>
+            {photo.crop ? 'Change crop' : 'Crop for grids'}
+          </button>
+        </div>
+      )}
+
       <form
         className="editor__form"
         onSubmit={(e) => {
@@ -111,7 +131,7 @@ export function PhotoEditor({ photo, albums, canMove, onMove, onSaved, onDeleted
         <TextArea label="Caption" value={draft.caption} onChange={set('caption')} error={errors.caption} rows={2} />
         <TextField label="Location" value={draft.location} onChange={set('location')} error={errors.location} />
         <SelectField
-          label="Series"
+          label="Project"
           value={draft.album}
           onChange={set('album')}
           error={errors.album}
@@ -144,7 +164,7 @@ export function PhotoEditor({ photo, albums, canMove, onMove, onSaved, onDeleted
 
       {(canMove.earlier || canMove.later) && (
         <div className="editor__order">
-          <span className="field__hint">Order in series</span>
+          <span className="field__hint">Order in project</span>
           <button type="button" className="btn btn--small" disabled={!canMove.earlier} onClick={() => onMove(-1)}>
             ← Earlier
           </button>

@@ -15,7 +15,7 @@ export function SiteHeader({ name, variant }: Props) {
         </Link>
         <nav aria-label="Main" className="site-nav">
           <Link to="/#series" scroll={false}>
-            Series
+            Projects
           </Link>
           <Link to="/#about" scroll={false}>
             About

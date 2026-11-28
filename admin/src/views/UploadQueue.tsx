@@ -12,7 +12,8 @@ type Item = {
   error?: string
 }
 
-const CONCURRENCY = 2
+// One at a time: the free API server processes each photo before the next.
+const CONCURRENCY = 1
 let nextId = 1
 
 function isJpeg(file: File) {
@@ -20,7 +21,7 @@ function isJpeg(file: File) {
 }
 
 type Props = {
-  /** Series new uploads go into, or null for Unsorted. */
+  /** Project new uploads go into, or null for Unsorted. */
   albumId: number | null
   albumLabel: string
   onUploaded: (photo: Photo) => void

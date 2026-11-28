@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { api, ApiError, type Album, type Photo } from '../api'
-import { TextArea, TextField, Toggle } from '../components/Field'
+import { api, ApiError, GRID_RATIOS, type Album, type GridRatio, type Photo } from '../api'
+import { SelectField, TextArea, TextField, Toggle } from '../components/Field'
 import { Thumb } from '../components/Thumb'
 import { errorText, useNotify } from '../notices'
 
@@ -23,7 +23,7 @@ export function SeriesView({ albums, reload }: Props) {
       setNewTitle('')
       await reload()
       setEditingId(album.id)
-      notify('Series created')
+      notify('Project created')
     } catch (err) {
       notify(errorText(err), 'error')
     } finally {
@@ -49,8 +49,8 @@ export function SeriesView({ albums, reload }: Props) {
   return (
     <div className="page">
       <div className="page__head">
-        <h1>Series</h1>
-        <p className="muted">Published series appear on the home page in this order. A series shows once it has a published photo.</p>
+        <h1>Projects</h1>
+        <p className="muted">Published projects appear on the home page in this order. A project shows once it has a published photo.</p>
       </div>
 
       <form
@@ -60,14 +60,14 @@ export function SeriesView({ albums, reload }: Props) {
           void create()
         }}
       >
-        <TextField label="New series" value={newTitle} onChange={setNewTitle} placeholder="e.g. Winter Light" />
+        <TextField label="New project" value={newTitle} onChange={setNewTitle} placeholder="e.g. Maison du Parc" />
         <button type="submit" className="btn btn--primary" disabled={creating || !newTitle.trim()}>
-          Create series
+          Create project
         </button>
       </form>
 
       {list.length === 0 ? (
-        <p className="empty">No series yet.</p>
+        <p className="empty">No projects yet.</p>
       ) : (
         <ol className="series-list">
           {list.map((album, i) => (
@@ -77,8 +77,9 @@ export function SeriesView({ albums, reload }: Props) {
                 <div className="series-row__text">
                   <strong>{album.title}</strong>
                   <span className="muted">
-                    {album.year ? `${album.year} · ` : ''}
-                    {album.photo_count ?? 0} photos · {album.is_published ? 'Published' : 'Draft'}
+                    {[album.architect, album.year].filter(Boolean).join(' · ')}
+                    {album.architect || album.year ? ' · ' : ''}
+                    {album.photo_count ?? 0} photos · {album.grid_ratio} grid · {album.is_published ? 'Published' : 'Draft'}
                   </span>
                 </div>
                 <div className="series-row__actions">
@@ -124,6 +125,9 @@ function AlbumEditor({ album, onSaved, onDeleted }: { album: Album; onSaved: () 
   const [year, setYear] = useState(album.year ? String(album.year) : '')
   const [description, setDescription] = useState(album.description)
   const [slug, setSlug] = useState(album.slug)
+  const [architect, setArchitect] = useState(album.architect)
+  const [location, setLocation] = useState(album.location)
+  const [gridRatio, setGridRatio] = useState<GridRatio>(album.grid_ratio)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [photos, setPhotos] = useState<Photo[] | null>(null)
   const [busy, setBusy] = useState(false)
@@ -152,7 +156,7 @@ function AlbumEditor({ album, onSaved, onDeleted }: { album: Album; onSaved: () 
     setBusy(true)
     try {
       await api.deleteAlbum(album.id)
-      notify('Series deleted. Its photos are now Unsorted.')
+      notify('Project deleted. Its photos are now Unsorted.')
       await onDeleted()
     } catch (err) {
       notify(errorText(err), 'error')
@@ -168,7 +172,7 @@ function AlbumEditor({ album, onSaved, onDeleted }: { album: Album; onSaved: () 
         className="album-editor__form"
         onSubmit={(e) => {
           e.preventDefault()
-          void save({ title, slug, description, year: year ? Number(year) : null })
+          void save({ title, slug, description, architect, location, grid_ratio: gridRatio, year: year ? Number(year) : null })
         }}
       >
         <TextField label="Title" value={title} onChange={setTitle} error={errors.title} required />
@@ -176,6 +180,18 @@ function AlbumEditor({ album, onSaved, onDeleted }: { album: Album; onSaved: () 
           <TextField label="Year" type="number" value={year} onChange={setYear} error={errors.year} />
           <TextField label="Web address" value={slug} onChange={setSlug} error={errors.slug} hint={`/series/${slug || '…'}`} />
         </div>
+        <div className="field-row">
+          <TextField label="Architect / practice" value={architect} onChange={setArchitect} error={errors.architect} />
+          <TextField label="Location" value={location} onChange={setLocation} error={errors.location} />
+        </div>
+        <SelectField
+          label="Grid shape"
+          value={gridRatio}
+          onChange={(v) => setGridRatio(v as GridRatio)}
+          error={errors.grid_ratio}
+          hint="Shape of the cells on the project page. Photos are fitted whole inside, never cut, unless you crop one."
+          options={GRID_RATIOS.map((g) => ({ value: g.value, label: g.label }))}
+        />
         <TextArea label="Introduction" value={description} onChange={setDescription} error={errors.description} rows={3} />
         <div className="album-editor__actions">
           <button type="submit" className="btn" disabled={busy}>
@@ -187,10 +203,11 @@ function AlbumEditor({ album, onSaved, onDeleted }: { album: Album; onSaved: () 
 
       <div className="cover-picker">
         <p className="field-label">Cover photo</p>
+        <p className="field__hint">Home page covers are 3:4. Crop the chosen photo to 3:4 in Photos if you want it to fill the frame.</p>
         {photos === null ? (
           <p className="muted">Loading…</p>
         ) : published.length === 0 ? (
-          <p className="field__hint">Publish a photo in this series to choose a cover. Until then the first published photo is used.</p>
+          <p className="field__hint">Publish a photo in this project to choose a cover. Until then the first published photo is used.</p>
         ) : (
           <ul className="cover-picker__grid" role="list">
             {published.map((p) => {
@@ -217,9 +234,9 @@ function AlbumEditor({ album, onSaved, onDeleted }: { album: Album; onSaved: () 
       <div className="editor__danger">
         {confirmDelete ? (
           <>
-            <span>Delete this series? Its photos are kept and become Unsorted.</span>
+            <span>Delete this project? Its photos are kept and become Unsorted.</span>
             <button type="button" className="btn btn--danger" disabled={busy} onClick={() => void remove()}>
-              Yes, delete series
+              Yes, delete project
             </button>
             <button type="button" className="btn btn--ghost" onClick={() => setConfirmDelete(false)}>
               Cancel
@@ -227,7 +244,7 @@ function AlbumEditor({ album, onSaved, onDeleted }: { album: Album; onSaved: () 
           </>
         ) : (
           <button type="button" className="btn btn--danger-outline" onClick={() => setConfirmDelete(true)}>
-            Delete series
+            Delete project
           </button>
         )}
       </div>

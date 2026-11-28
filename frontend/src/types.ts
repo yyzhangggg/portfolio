@@ -14,6 +14,11 @@ export type Exif = Partial<{
   iso: number
 }>
 
+/** Cropped versions chosen in the dashboard, used only in grids and covers. */
+export type GridSources = ImageSources & { ratio: GridRatio }
+
+export type GridRatio = '3:4' | '4:3' | '16:9' | '9:16'
+
 export type Photo = {
   id: number
   title: string
@@ -22,17 +27,21 @@ export type Photo = {
   width: number
   height: number
   src: ImageSources
+  grid_src: GridSources | null
   taken_at: string | null
   location: string
   exif: Exif
 }
 
-export type Cover = Pick<Photo, 'alt_text' | 'width' | 'height' | 'src'>
+export type Cover = Pick<Photo, 'alt_text' | 'width' | 'height' | 'src' | 'grid_src'>
 
 export type AlbumSummary = {
   slug: string
   title: string
   year: number | null
+  architect: string
+  location: string
+  grid_ratio: GridRatio
   description: string
   photo_count: number
   cover: Cover | null

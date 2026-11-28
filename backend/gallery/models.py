@@ -4,6 +4,13 @@ from django.db import models
 
 from .storage import PUBLIC, get_storage
 
+GRID_RATIO_CHOICES = [
+    ("3:4", "3:4 portrait"),
+    ("4:3", "4:3 landscape"),
+    ("16:9", "16:9 wide"),
+    ("9:16", "9:16 tall"),
+]
+
 
 def variant_urls(variants: dict) -> dict:
     """{"thumb": {"key", "width", "height"}} -> {"thumb": {"url", "width", "height"}}."""
@@ -38,13 +45,22 @@ class PhotographerProfile(models.Model):
 
 
 class Album(models.Model):
-    """A photo series. Shown on the home page when published, in display_order."""
+    """A series: for architecture, usually one building or project.
+    Published series are shown on the home page in display_order."""
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="albums")
     title = models.CharField(max_length=200)
     slug = models.SlugField()
     description = models.TextField(blank=True)
     year = models.PositiveSmallIntegerField(null=True, blank=True)
+    architect = models.CharField(max_length=200, blank=True, help_text="Architect or practice.")
+    location = models.CharField(max_length=200, blank=True)
+    grid_ratio = models.CharField(
+        max_length=5,
+        choices=GRID_RATIO_CHOICES,
+        default="4:3",
+        help_text="Shape of the cells on the series page. Photos are never cropped to fit.",
+    )
     cover = models.ForeignKey(
         "Photo",
         null=True,
@@ -76,6 +92,11 @@ class Photo(models.Model):
 
     original_key = models.CharField(max_length=300, help_text="Key in the private bucket.")
     variants = models.JSONField(default=dict, help_text="name -> {key, width, height} in the public bucket.")
+    # Optional crop chosen in the dashboard: {"ratio": "4:3", "box": {x, y, width, height}} in
+    # fractions of the oriented image. Only grid thumbnails and covers use it; the
+    # lightbox always shows the whole photo.
+    crop = models.JSONField(null=True, blank=True)
+    grid_variants = models.JSONField(default=dict, blank=True, help_text="Cropped variants, when cropped.")
     width = models.PositiveIntegerField()
     height = models.PositiveIntegerField()
     file_size = models.PositiveBigIntegerField(default=0)
@@ -113,14 +134,15 @@ class Photo(models.Model):
             raise ValidationError({"album": "Album belongs to another photographer."})
 
     def public_keys(self) -> list[str]:
-        return [v["key"] for v in (self.variants or {}).values()]
+        keys = [v["key"] for v in (self.variants or {}).values()]
+        return keys + [v["key"] for v in (self.grid_variants or {}).values()]
 
 
 class HomepageSettings(models.Model):
     """The hero section of a photographer's home page."""
 
     owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="homepage")
-    headline = models.CharField(max_length=200, default="Light, places, and the quiet in between.")
+    headline = models.CharField(max_length=200, default="Architecture photography")
     subheadline = models.CharField(max_length=300, blank=True)
 
     hero_video_key = models.CharField(max_length=300, blank=True, help_text="Key in the public bucket.")

@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import timezone as dt_timezone
 
 from django.conf import settings
@@ -19,12 +20,14 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from .models import Album, HomepageSettings, PhotographerProfile, Photo, delete_public_keys
+from .processing import InvalidCrop, InvalidImage, crop_variants, parse_crop
 from .serializers import (
     AdminAlbumSerializer,
     AdminHomepageSerializer,
     AdminPhotoSerializer,
     AdminProfileSerializer,
     BulkPhotoSerializer,
+    CropSerializer,
     IdsSerializer,
     PhotoCreateSerializer,
     PublicAlbumDetailSerializer,
@@ -33,7 +36,7 @@ from .serializers import (
     PublicPhotographerSerializer,
     UploadRequestSerializer,
 )
-from .storage import DEV_UPLOAD_SALT, PRIVATE, LocalStorage, get_storage
+from .storage import DEV_UPLOAD_SALT, PRIVATE, PUBLIC, LocalStorage, get_storage
 from .uploads import check_uploaded, create_upload, process_image_upload
 
 logger = logging.getLogger(__name__)
@@ -315,6 +318,43 @@ class AdminPhotoViewSet(viewsets.ModelViewSet):
         data.is_valid(raise_exception=True)
         reorder(Photo.objects.filter(owner=request.user), data.validated_data["ids"])
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"])
+    def crop(self, request, pk=None):
+        """Set or remove the grid crop. The original and full variants are untouched."""
+        photo = self.get_object()
+        data = CropSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        ratio = data.validated_data["ratio"]
+        old_keys = [v["key"] for v in (photo.grid_variants or {}).values()]
+
+        if ratio is None:
+            photo.crop = None
+            photo.grid_variants = {}
+        else:
+            try:
+                box = parse_crop(data.validated_data.get("box"), ratio, (photo.width, photo.height))
+            except InvalidCrop as exc:
+                raise ValidationError({"box": str(exc)}) from exc
+            storage = get_storage()
+            try:
+                variants = crop_variants(storage.read(PRIVATE, photo.original_key), settings.MAX_PHOTO_PIXELS, box)
+            except InvalidImage as exc:
+                raise ValidationError({"detail": str(exc)}) from exc
+            stem = photo.original_key.rsplit("/", 1)[-1].split(".")[0]
+            # A fresh name per crop, because public files are cached as immutable.
+            token = uuid.uuid4().hex[:8]
+            new = {}
+            for v in variants:
+                key = f"photos/{photo.owner_id}/{stem}/grid-{token}-{v.name}.webp"
+                storage.write(PUBLIC, key, v.data, v.content_type)
+                new[v.name] = {"key": key, "width": v.width, "height": v.height}
+            photo.crop = {"ratio": ratio, "box": box.to_dict()}
+            photo.grid_variants = new
+
+        photo.save(update_fields=["crop", "grid_variants", "updated_at"])
+        delete_public_keys(old_keys)
+        return Response(AdminPhotoSerializer(photo, context={"request": request}).data)
 
     @action(detail=False, methods=["post"])
     def bulk(self, request):

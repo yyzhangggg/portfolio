@@ -132,16 +132,16 @@ export function LibraryView({ albums, onAlbumsChanged }: Props) {
 
   const selectedIndex = photos && selectedId != null ? photos.findIndex((p) => p.id === selectedId) : -1
   const heading =
-    albumFilter === 'all' ? 'All photos' : albumFilter === 'none' ? 'Unsorted' : (currentAlbum?.title ?? 'Series')
+    albumFilter === 'all' ? 'All photos' : albumFilter === 'none' ? 'Unsorted' : (currentAlbum?.title ?? 'Project')
 
   return (
     <div className="library">
-      <nav className="library__nav" aria-label="Filter by series">
+      <nav className="library__nav" aria-label="Filter by project">
         <p className="library__nav-label">Library</p>
         <FilterLink active={albumFilter === 'all'} onClick={() => setAlbumFilter('all')} label="All photos" />
         <FilterLink active={albumFilter === 'none'} onClick={() => setAlbumFilter('none')} label="Unsorted" />
-        <p className="library__nav-label">Series</p>
-        {albums.length === 0 && <p className="field__hint">No series yet. Create one in the Series tab.</p>}
+        <p className="library__nav-label">Projects</p>
+        {albums.length === 0 && <p className="field__hint">No projects yet. Create one in the Projects tab.</p>}
         {albums.map((a) => (
           <FilterLink
             key={a.id}
@@ -184,7 +184,7 @@ export function LibraryView({ albums, onAlbumsChanged }: Props) {
               Unpublish
             </button>
             <label className="bulkbar__move">
-              <span className="visually-hidden">Move to series</span>
+              <span className="visually-hidden">Move to project</span>
               <select value={moveTarget} onChange={(e) => setMoveTarget(e.target.value)}>
                 <option value="">Unsorted</option>
                 {albums.map((a) => (
@@ -213,7 +213,7 @@ export function LibraryView({ albums, onAlbumsChanged }: Props) {
         )}
 
         {inOneAlbum && photos && photos.length > 1 && (
-          <p className="field__hint">Drag photos to change their order in this series. It saves automatically.</p>
+          <p className="field__hint">Drag photos to change their order in this project. It saves automatically.</p>
         )}
 
         {photos === null ? (
