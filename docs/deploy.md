@@ -39,7 +39,7 @@ Pick the names now (e.g. `ziyue-api`, `ziyue`, `ziyue-admin`) so you can fill th
 
 ## 3. Render (API)
 
-1. Before deploying, edit **both** `frontend/vercel.json` and `admin/vercel.json`: replace `YOUR-RENDER-SERVICE` with your Render service name (e.g. `ziyue-api`). Commit and push.
+1. Before deploying, edit **both** `frontend/vercel.json` and `admin/vercel.json`: set the Render service name (currently `portfolio-sh3q`). Commit and push.
 2. Render → New → Blueprint → pick this repo. It reads `render.yaml`.
 3. Fill in the variables it asks for:
    - `DATABASE_URL`: from Neon
